@@ -8,6 +8,7 @@ from scipy.stats import kstest
 
 import io
 
+from sklearn.cross_decomposition import PLSRegression
 from sklearn.utils._testing import assert_allclose
 from sklearn.utils._testing import assert_allclose_dense_sparse
 from sklearn.utils._testing import assert_array_equal
@@ -633,7 +634,7 @@ def test_iterative_imputer_imputation_order(imputation_order):
 
 @pytest.mark.parametrize(
     "estimator",
-    [None, DummyRegressor(), BayesianRidge(), ARDRegression(), RidgeCV()]
+    [None, DummyRegressor(), BayesianRidge(), ARDRegression(), RidgeCV(), PLSRegression()]
 )
 def test_iterative_imputer_estimators(estimator):
     rng = np.random.RandomState(0)
