@@ -293,6 +293,7 @@ class IterativeImputer(_BaseImputer):
             The fitted estimator used to impute
             ``X_filled[missing_row_mask, feat_idx]``.
         """
+        print(f"imputing one feat")
         if estimator is None and fit_mode is False:
             raise ValueError("If fit_mode is False, then an already-fitted "
                              "estimator should be passed in.")
@@ -345,7 +346,13 @@ class IterativeImputer(_BaseImputer):
                                      self._max_value[feat_idx])
 
         # update the feature
-        X_filled[missing_row_mask, feat_idx] = imputed_values
+        # print(f"X_filled: {X_filled.shape, X_filled}")
+        # print(f"imputed valutes: {imputed_values}")
+        # print(f"missing_row_mask: {missing_row_mask.shape}")
+        # print(f"feat_idx: {feat_idx}")
+        # print(f"{imputed_values.shape}")
+        # print(f"{imputed_values.reshape(imputed_values.shape[0])}")
+        X_filled[missing_row_mask, feat_idx] = imputed_values.reshape(imputed_values.shape[0])
         return X_filled, estimator
 
     def _get_neighbor_feat_idx(self,
