@@ -487,6 +487,8 @@ class _BaseDiscreteNB(_BaseNB):
     _joint_log_likelihood(X) as per _BaseNB
     """
 
+    _permit_zero_alpha = False
+
     def _check_X(self, X):
         return check_array(X, accept_sparse='csr')
 
@@ -522,8 +524,9 @@ class _BaseDiscreteNB(_BaseNB):
                 raise ValueError("alpha should be a scalar or a numpy array "
                                  "with shape [n_features]")
         if np.min(self.alpha) < _ALPHA_MIN:
-            warnings.warn('alpha too small will result in numeric errors, '
-                          'setting alpha = %.1e' % _ALPHA_MIN)
+            if not (self._permit_zero_alpha and self.alpha == 0):
+                warnings.warn('alpha too small will result in numeric errors, '
+                              'setting alpha = %.1e' % _ALPHA_MIN)
             return np.maximum(self.alpha, _ALPHA_MIN)
         return self.alpha
 
@@ -784,6 +787,7 @@ class MultinomialNB(_BaseDiscreteNB):
         self.alpha = alpha
         self.fit_prior = fit_prior
         self.class_prior = class_prior
+        self._permit_zero_alpha = True
 
     def _more_tags(self):
         return {'requires_positive_X': True}
@@ -1030,6 +1034,7 @@ class BernoulliNB(_BaseDiscreteNB):
         self.binarize = binarize
         self.fit_prior = fit_prior
         self.class_prior = class_prior
+        self._permit_zero_alpha = True
 
     def _check_X(self, X):
         X = super()._check_X(X)
