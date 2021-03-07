@@ -34,6 +34,7 @@ X = np.atleast_2d([1., 3., 5., 6., 7., 8.]).T
 X2 = np.atleast_2d([2., 4., 5.5, 6.5, 7.5]).T
 y = f(X).ravel()
 
+basic_kernel = RBF()
 fixed_kernel = RBF(length_scale=1.0, length_scale_bounds="fixed")
 kernels = [RBF(length_scale=1.0), fixed_kernel,
            RBF(length_scale=1.0, length_scale_bounds=(1e-3, 1e3)),
@@ -543,3 +544,8 @@ def test_bound_check_fixed_hyperparameter():
                         periodicity_bounds="fixed")  # seasonal component
     kernel = k1 + k2
     GaussianProcessRegressor(kernel=kernel).fit(X, y)
+
+def test_no_divide_by_zero():
+    # Check that having 0 standard deviation doesn't cause an error
+    gpr = GaussianProcessRegressor(kernel=basic_kernel, normalize_y=True)
+    gpr.fit([[1, 1], [2, 2]], [0, 0])
