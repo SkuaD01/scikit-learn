@@ -8,6 +8,7 @@ from scipy.stats import kstest
 
 import io
 
+from sklearn.cross_decomposition import PLSRegression
 from sklearn.utils._testing import assert_allclose
 from sklearn.utils._testing import assert_allclose_dense_sparse
 from sklearn.utils._testing import assert_array_equal
@@ -16,7 +17,7 @@ from sklearn.utils._testing import assert_array_almost_equal
 # make IterativeImputer available
 from sklearn.experimental import enable_iterative_imputer  # noqa
 
-from sklearn.datasets import load_diabetes
+from sklearn.datasets import load_diabetes, fetch_california_housing
 from sklearn.impute import MissingIndicator
 from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.dummy import DummyRegressor
@@ -633,7 +634,7 @@ def test_iterative_imputer_imputation_order(imputation_order):
 
 @pytest.mark.parametrize(
     "estimator",
-    [None, DummyRegressor(), BayesianRidge(), ARDRegression(), RidgeCV()]
+    [None, DummyRegressor(), BayesianRidge(), ARDRegression(), RidgeCV(), PLSRegression()]
 )
 def test_iterative_imputer_estimators(estimator):
     rng = np.random.RandomState(0)
@@ -658,6 +659,33 @@ def test_iterative_imputer_estimators(estimator):
 
     # check that each estimator is unique
     assert len(set(hashes)) == len(hashes)
+
+
+def test_iterative_imputer_multiple_components():
+
+    rng = np.random.RandomState(42)
+
+    # get sample data from california housing dataset
+    X_california, y_california = fetch_california_housing(return_X_y=True)
+    n_samples, n_features = X_california.shape
+
+    # Add missing values in 75% of the lines
+    missing_rate = 0.75
+    n_missing_samples = int(n_samples * missing_rate)
+    missing_samples = np.zeros(n_samples, dtype=bool)
+    missing_samples[: n_missing_samples] = True
+
+    rng.shuffle(missing_samples)
+    missing_features = rng.randint(0, n_features, n_missing_samples)
+    X_missing = X_california.copy()
+    X_missing[missing_samples, missing_features] = np.nan
+
+    # PLSRegression returns multi-dimensional numpy array as
+    # opposed to other estimators which return 1-D array,
+    # but this should not cause issues in the imputer
+    imputer = IterativeImputer(estimator=PLSRegression(n_components=2))
+    X_imputed = imputer.fit_transform(X_missing)
+    assert X_imputed.shape == X_california.shape
 
 
 def test_iterative_imputer_clip():
