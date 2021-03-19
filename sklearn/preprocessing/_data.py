@@ -1637,6 +1637,7 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
         self.order = order
 
     @staticmethod
+    @_deprecate_positional_args
     def _combinations(n_features, degree, interaction_only, include_bias):
         comb = (combinations if interaction_only else combinations_w_r)
         start = int(not include_bias)
