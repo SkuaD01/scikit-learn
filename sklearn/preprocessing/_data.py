@@ -1636,9 +1636,9 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
     <sphx_glr_auto_examples_linear_model_plot_polynomial_interpolation.py>`
     """
     @_deprecate_positional_args
-    def __init__(self, max_degree=2, *, interaction_only=False, include_bias=True,
-                 order='C', min_degree=0, degree=0):
-        self.max_degree = degree or max_degree # lazy evaluation to handle deprecaition
+    def __init__(self, max_degree=None, *, interaction_only=False, include_bias=True,
+                 order='C', min_degree=0, degree=2):
+        self.max_degree = max_degree or degree # lazy evaluation to handle deprecaition
         self.min_degree = min_degree or int(not include_bias) # lazy evaluation to handle deprecaition
         self.interaction_only = interaction_only
         self.include_bias = include_bias
