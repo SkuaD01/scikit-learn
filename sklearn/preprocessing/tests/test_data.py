@@ -291,6 +291,25 @@ def test_polynomial_features_csr_X_dim_edges(deg, dim, interaction_only):
     assert_array_almost_equal(Xt_csr.A, Xt_dense)
 
 
+@pytest.mark.parametrize(['deg', 'interaction_only', 'min'],
+                         [(2, True, 0),
+                         (3, True, 1),
+                         (3, True, 2),
+                         (3, False, 3)])
+def test_polynomial_features_min_degree(deg, interaction_only, min_deg):
+    X_csr = sparse_random(1000, deg, 0.5, random_state=0).tocsr()
+    X = X_csr.toarray()
+
+    est = PolynomialFeatures(deg, interaction_only=interaction_only, min_degree=min_deg)
+    Xt_csr = est.fit_transform(X_csr)
+    Xt_dense = est.fit_transform(X)
+
+    assert isinstance(Xt_csr, sparse.csr_matrix)
+    assert Xt_csr.dtype == Xt_dense.dtype
+    assert_array_almost_equal(Xt_csr.A, Xt_dense)
+
+
+
 def test_raises_value_error_if_sample_weights_greater_than_1d():
     # Sample weights must be either scalar or 1D
 
