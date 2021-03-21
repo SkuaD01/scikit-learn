@@ -160,12 +160,12 @@ def test_polynomial_features_min_degree_2_max_degree_bigger():
     X = [[2, 3, 4]]
     poly = PolynomialFeatures(max_degree=3, min_degree=2, interaction_only=True)
     res = poly.fit_transform(X)
-    assert_array_almost_equal(res, [[1., 2., 3., 4., 6., 8., 12., 24.]])
+    assert_array_almost_equal(res, [[6., 8., 12., 24.]])
 def test_polynomial_features_min_degree_2_max_degree_bigger_all_combinations():
     X = [[2, 3, 4]]
     poly = PolynomialFeatures(max_degree=3, min_degree=2, interaction_only=False)
     res = poly.fit_transform(X)
-    assert_array_almost_equal(res, [[ 4.,  6.,  8.,  9., 12., 16.,  8., 12., 16., 18., 24., 32., 27.,
+    assert_array_almost_equal(res, [[4.,  6.,  8.,  9., 12., 16.,  8., 12., 16., 18., 24., 32., 27.,
         36., 48., 64.]])
 
 def test_polynomial_feature_names():
