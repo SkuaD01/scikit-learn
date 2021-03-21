@@ -291,7 +291,7 @@ def test_polynomial_features_csr_X_dim_edges(deg, dim, interaction_only):
     assert_array_almost_equal(Xt_csr.A, Xt_dense)
 
 
-@pytest.mark.parametrize(['deg', 'interaction_only', 'min'],
+@pytest.mark.parametrize(['deg', 'interaction_only', 'min_deg'],
                          [(2, True, 0),
                          (3, True, 1),
                          (3, True, 2),
