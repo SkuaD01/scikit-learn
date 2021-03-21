@@ -126,6 +126,47 @@ def test_polynomial_features():
     assert interact.powers_.shape == (interact.n_output_features_,
                                       interact.n_input_features_)
 
+def test_polynomial_features_min_degree_equals_max_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(min_degree=2, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[6., 8., 12.]])
+
+def test_polynomial_features_include_bias_overrides_min_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(include_bias=False, min_degree=0, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[2., 3., 4., 6., 8., 12.]])
+
+def test_polynomial_features_min_degree_overrides_include_bias():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(include_bias=False, min_degree=2, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[6., 8., 12.]])
+
+def test_polynomial_features_min_degree_greater_than_max_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(min_degree=4, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[]])
+
+def test_polynomial_features_max_degree_instead_of_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(max_degree=2, degree=6, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[1., 2., 3., 4., 6., 8., 12.]])
+
+def test_polynomial_features_min_degree_2_max_degree_bigger():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(max_degree=3, min_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[6., 8., 12., 24.]])
+def test_polynomial_features_min_degree_2_max_degree_bigger_all_combinations():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(max_degree=3, min_degree=2, interaction_only=False)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[4.,  6.,  8.,  9., 12., 16.,  8., 12., 16., 18., 24., 32., 27.,
+        36., 48., 64.]])
 
 def test_polynomial_feature_names():
     X = np.arange(30).reshape(10, 3)
@@ -289,6 +330,25 @@ def test_polynomial_features_csr_X_dim_edges(deg, dim, interaction_only):
     assert isinstance(Xt_csr, sparse.csr_matrix)
     assert Xt_csr.dtype == Xt_dense.dtype
     assert_array_almost_equal(Xt_csr.A, Xt_dense)
+
+
+@pytest.mark.parametrize(['deg', 'interaction_only', 'min_deg'],
+                         [(2, True, 0),
+                         (3, True, 1),
+                         (3, True, 2),
+                         (3, False, 3)])
+def test_polynomial_features_min_degree(deg, interaction_only, min_deg):
+    X_csr = sparse_random(1000, deg, 0.5, random_state=0).tocsr()
+    X = X_csr.toarray()
+
+    est = PolynomialFeatures(deg, interaction_only=interaction_only, min_degree=min_deg)
+    Xt_csr = est.fit_transform(X_csr)
+    Xt_dense = est.fit_transform(X)
+
+    assert isinstance(Xt_csr, sparse.csr_matrix)
+    assert Xt_csr.dtype == Xt_dense.dtype
+    assert_array_almost_equal(Xt_csr.A, Xt_dense)
+
 
 
 def test_raises_value_error_if_sample_weights_greater_than_1d():

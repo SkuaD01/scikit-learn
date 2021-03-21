@@ -244,7 +244,7 @@ class MinMaxScaler(TransformerMixin, BaseEstimator):
         Set to False to perform inplace row normalization and avoid a
         copy (if the input is already a numpy array).
 
-    clip : bool, default=False
+    clip: bool, default=False
         Set to True to clip transformed values of held-out data to
         provided `feature range`.
 
@@ -836,7 +836,6 @@ class StandardScaler(TransformerMixin, BaseEstimator):
                 self.mean_ = None
                 self.var_ = None
                 self.n_samples_seen_ += X.shape[0] - np.isnan(X).sum(axis=0)
-
             else:
                 self.mean_, self.var_, self.n_samples_seen_ = \
                     _incremental_mean_and_var(X, self.mean_, self.var_,
@@ -1556,21 +1555,22 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
     """Generate polynomial and interaction features.
 
     Generate a new feature matrix consisting of all polynomial combinations
-    of the features with degree less than or equal to the specified degree.
+    of the features with degree less than or equal to the specified max_degree,
+    and greater than or equal to the specified min_degree.
     For example, if an input sample is two dimensional and of the form
     [a, b], the degree-2 polynomial features are [1, a, b, a^2, ab, b^2].
 
     Parameters
     ----------
-    degree : int, default=2
-        The degree of the polynomial features.
+    max_degree : int, default=2
+        The maximal degree of the polynomial features.
 
     interaction_only : bool, default=False
         If true, only interaction features are produced: features that are
         products of at most ``degree`` *distinct* input features (so not
         ``x[1] ** 2``, ``x[0] * x[2] ** 3``, etc.).
 
-    include_bias : bool, default=True
+    include_bias : bool, default=True (deprecated by min_degree)
         If True (default), then include a bias column, the feature in which
         all polynomial powers are zero (i.e. a column of ones - acts as an
         intercept term in a linear model).
@@ -1578,6 +1578,13 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
     order : {'C', 'F'}, default='C'
         Order of output array in the dense case. 'F' order is faster to
         compute, but may slow down subsequent estimators.
+
+    min_degree : int, default=0
+        The minimal degree of the polynomial features. This replaces the
+        include_bias variable if min_degree is not 0.
+
+    degree : int, default=0 (deprecated by max_degree)
+        The maximal degree of the polynomial features
 
         .. versionadded:: 0.21
 
@@ -1629,27 +1636,30 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
     <sphx_glr_auto_examples_linear_model_plot_polynomial_interpolation.py>`
     """
     @_deprecate_positional_args
-    def __init__(self, degree=2, *, interaction_only=False, include_bias=True,
-                 order='C'):
-        self.degree = degree
+    def __init__(self, max_degree=None, *, interaction_only=False, include_bias=True,
+                 order='C', min_degree=0, degree=2):
+        self.max_degree = max_degree or degree # lazy evaluation to handle deprecaition
+        self.min_degree = min_degree or int(not include_bias) # lazy evaluation to handle deprecaition
         self.interaction_only = interaction_only
         self.include_bias = include_bias
         self.order = order
 
     @staticmethod
-    def _combinations(n_features, degree, interaction_only, include_bias):
+    @_deprecate_positional_args
+    def _combinations(n_features, max_degree, interaction_only, *, include_bias=True, min_degree=0, degree=2):
         comb = (combinations if interaction_only else combinations_w_r)
-        start = int(not include_bias)
+        start = min_degree or int(not include_bias) # lazy evaluation to handle deprecation
         return chain.from_iterable(comb(range(n_features), i)
-                                   for i in range(start, degree + 1))
+                                   for i in range(start, max_degree + 1))
 
     @property
     def powers_(self):
         check_is_fitted(self)
 
-        combinations = self._combinations(self.n_input_features_, self.degree,
+        combinations = self._combinations(self.n_input_features_, self.max_degree,
                                           self.interaction_only,
-                                          self.include_bias)
+                                          include_bias=self.include_bias,
+                                          min_degree=self.min_degree)
         return np.vstack([np.bincount(c, minlength=self.n_input_features_)
                           for c in combinations])
 
@@ -1702,9 +1712,10 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
         """
         n_samples, n_features = self._validate_data(
             X, accept_sparse=True).shape
-        combinations = self._combinations(n_features, self.degree,
+        combinations = self._combinations(n_features, self.max_degree,
                                           self.interaction_only,
-                                          self.include_bias)
+                                          include_bias=self.include_bias,
+                                          min_degree=self.min_degree)
         self.n_input_features_ = n_features
         self.n_output_features_ = sum(1 for _ in combinations)
         return self
@@ -1749,13 +1760,14 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
             raise ValueError("X shape does not match training shape")
 
         if sparse.isspmatrix_csr(X):
-            if self.degree > 3:
+            if self.max_degree > 3:
                 return self.transform(X.tocsc()).tocsr()
             to_stack = []
-            if self.include_bias:
+            if self.min_degree == 0:
                 to_stack.append(np.ones(shape=(n_samples, 1), dtype=X.dtype))
-            to_stack.append(X)
-            for deg in range(2, self.degree+1):
+            if self.min_degree <= 1: # check here since degrees of 1 are not always included
+                to_stack.append(X)
+            for deg in range(max(2,self.min_degree), self.max_degree+1): # min_degree can be 2, 3, or greater.
                 Xp_next = _csr_polynomial_expansion(X.data, X.indices,
                                                     X.indptr, X.shape[1],
                                                     self.interaction_only,
@@ -1764,13 +1776,14 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
                     break
                 to_stack.append(Xp_next)
             XP = sparse.hstack(to_stack, format='csr')
-        elif sparse.isspmatrix_csc(X) and self.degree < 4:
+        elif sparse.isspmatrix_csc(X) and self.max_degree < 4:
             return self.transform(X.tocsr()).tocsc()
         else:
             if sparse.isspmatrix(X):
-                combinations = self._combinations(n_features, self.degree,
+                combinations = self._combinations(n_features, self.max_degree,
                                                   self.interaction_only,
-                                                  self.include_bias)
+                                                  include_bias=self.include_bias,
+                                                  min_degree=self.min_degree)
                 columns = []
                 for comb in combinations:
                     if comb:
@@ -1783,7 +1796,17 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
                         columns.append(bias)
                 XP = sparse.hstack(columns, dtype=X.dtype).tocsc()
             else:
-                XP = np.empty((n_samples, self.n_output_features_),
+                
+                XP_width = self.n_output_features_
+                # calculate output feature size combinatorically if needed
+                if self.min_degree >= 2:
+                    # interaction_only=True -> output size is proportional to the sum(n choose k), k in [1,d]
+                    # otherwise, output size is proportional to the sum(n+k-1 choose k), k in [1,d]
+                    if self.interaction_only:
+                        XP_width = sum([np.math.comb(self.n_input_features_, i) for i in range(1,max(self.max_degree+1, self.n_input_features_))])
+                    else:
+                        XP_width = sum([np.math.comb(i + self.n_input_features_ - 1, i) for i in range(1,self.max_degree+1)])
+                XP = np.empty((n_samples, XP_width),
                               dtype=X.dtype, order=self.order)
 
                 # What follows is a faster implementation of:
@@ -1799,21 +1822,21 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
                 # Xi^3 is computed reusing previous computation:
                 # Xi^3 = Xi^2 * Xi.
 
-                if self.include_bias:
+                if self.min_degree == 0:
                     XP[:, 0] = 1
                     current_col = 1
                 else:
                     current_col = 0
-
+                
                 # d = 0
                 XP[:, current_col:current_col + n_features] = X
                 index = list(range(current_col,
-                                   current_col + n_features))
+                                    current_col + n_features))
                 current_col += n_features
                 index.append(current_col)
 
                 # d >= 1
-                for _ in range(1, self.degree):
+                for _ in range(1, self.max_degree):
                     new_index = []
                     end = index[-1]
                     for feature_idx in range(n_features):
@@ -1835,7 +1858,9 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
 
                     new_index.append(current_col)
                     index = new_index
-
+                # omit unwanted dynamic programming columns that were used for optimized calculation
+                if self.min_degree >= 2:
+                    XP = XP[:, XP_width-self.n_output_features_:]
         return XP
 
 
