@@ -126,6 +126,35 @@ def test_polynomial_features():
     assert interact.powers_.shape == (interact.n_output_features_,
                                       interact.n_input_features_)
 
+def test_polynomial_features_min_degree_equals_max_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(min_degree=2, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[6., 8., 12.]])
+
+def test_polynomial_features_include_bias_overrides_min_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(include_bias=False, min_degree=0, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[2., 3., 4., 6., 8., 12.]])
+
+def test_polynomial_features_min_degree_overrides_include_bias():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(include_bias=False, min_degree=2, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[6., 8., 12.]])
+
+def test_polynomial_features_min_degree_greater_than_max_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(min_degree=4, max_degree=2, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[]])
+
+def test_polynomial_features_max_degree_instead_of_degree():
+    X = [[2, 3, 4]]
+    poly = PolynomialFeatures(max_degree=2, degree=6, interaction_only=True)
+    res = poly.fit_transform(X)
+    assert_array_almost_equal(res, [[1., 2., 3., 4., 6., 8., 12.]])
 
 def test_polynomial_feature_names():
     X = np.arange(30).reshape(10, 3)
