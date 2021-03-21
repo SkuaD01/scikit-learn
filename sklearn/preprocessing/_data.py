@@ -1865,9 +1865,9 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
 
                     new_index.append(current_col)
                     index = new_index
-        # omit unwanted dynamic programming columns that were used for optimized calculation
-        if self.min_degree >= 2:
-            XP = XP[:, XP_width-self.n_output_features_:]
+                # omit unwanted dynamic programming columns that were used for optimized calculation
+                if self.min_degree >= 2:
+                    XP = XP[:, XP_width-self.n_output_features_:]
         return XP
 
 
