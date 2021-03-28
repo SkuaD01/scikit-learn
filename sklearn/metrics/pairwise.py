@@ -352,6 +352,7 @@ def _euclidean_distances(X, Y, X_norm_squared=None, Y_norm_squared=None,
     return distances if squared else np.sqrt(distances, out=distances)
 
 
+# TODO: this can be cythonized
 @_deprecate_positional_args
 def nan_euclidean_distances(X, Y=None, *, squared=False,
                             missing_values=np.nan, copy=True):
@@ -1657,6 +1658,8 @@ def pairwise_distances_chunked(X, Y=None, *, reduce_func=None,
             # zeroing diagonal, taking care of aliases of "euclidean",
             # i.e. "l2"
             D_chunk.flat[sl.start::_num_samples(X) + 1] = 0
+
+        # TODO: reduce func takes most of the computation time
         if reduce_func is not None:
             chunk_size = D_chunk.shape[0]
             D_chunk = reduce_func(D_chunk, sl.start)

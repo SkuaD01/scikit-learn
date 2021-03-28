@@ -109,6 +109,8 @@ class KNNImputer(_BaseImputer):
         self.metric = metric
         self.copy = copy
 
+    # TODO: this needs to be parallelized bc it takes a long time
+
     def _calc_impute(self, dist_pot_donors, n_neighbors,
                      fit_X_col, mask_fit_X_col):
         """Helper function to impute a single column.
@@ -235,6 +237,8 @@ class KNNImputer(_BaseImputer):
         # Maps from indices from X to indices in dist matrix
         dist_idx_map = np.zeros(X.shape[0], dtype=int)
         dist_idx_map[row_missing_idx] = np.arange(row_missing_idx.shape[0])
+
+        # TODO: parallelize this
 
         def process_chunk(dist_chunk, start):
             row_missing_chunk = row_missing_idx[start:start + len(dist_chunk)]
