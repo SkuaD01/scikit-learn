@@ -1638,7 +1638,8 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
     @_deprecate_positional_args
     def __init__(self, max_degree=None, *, interaction_only=False, include_bias=True,
                  order='C', min_degree=0, degree=2):
-        self.max_degree = max_degree or degree # lazy evaluation to handle deprecaition
+        self.max_degree = max_degree or degree  # lazy evaluation to handle deprecaition
+        self.degree = max_degree or degree
         self.min_degree = min_degree or int(not include_bias) # lazy evaluation to handle deprecaition
         self.interaction_only = interaction_only
         self.include_bias = include_bias
