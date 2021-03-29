@@ -3,6 +3,9 @@
 # License: BSD 3 clause
 
 import numpy as np
+import multiprocessing as mp
+
+from joblib import Parallel
 
 from ._base import _BaseImputer
 from ..utils.validation import FLOAT_DTYPES
@@ -209,90 +212,59 @@ class KNNImputer(_BaseImputer):
             that is not always missing during `fit`.
         """
 
+        ta = _TransformArgs(self)
+
         check_is_fitted(self)
         if not is_scalar_nan(self.missing_values):
             force_all_finite = True
         else:
             force_all_finite = "allow-nan"
-        X = self._validate_data(X, accept_sparse=False, dtype=FLOAT_DTYPES,
+        ta.X = self._validate_data(X, accept_sparse=False, dtype=FLOAT_DTYPES,
                                 force_all_finite=force_all_finite,
                                 copy=self.copy, reset=False)
 
-        mask = _get_mask(X, self.missing_values)
-        mask_fit_X = self._mask_fit_X
-        valid_mask = ~np.all(mask_fit_X, axis=0)
+        ta.mask = _get_mask(ta.X, self.missing_values)
+        ta.mask_fit_X = self._mask_fit_X
+        ta.valid_mask = ~np.all(ta.mask_fit_X, axis=0)
 
-        X_indicator = super()._transform_indicator(mask)
+        X_indicator = super()._transform_indicator(ta.mask)
 
         # Removes columns where the training data is all nan
-        if not np.any(mask):
+        if not np.any(ta.mask):
             # No missing values in X
             # Remove columns where the training data is all nan
-            return X[:, valid_mask]
+            return ta.X[:, ta.valid_mask]
 
-        row_missing_idx = np.flatnonzero(mask.any(axis=1))
+        row_missing_idx = np.flatnonzero(ta.mask.any(axis=1))
 
-        non_missing_fix_X = np.logical_not(mask_fit_X)
+        ta.non_missing_fix_X = np.logical_not(ta.mask_fit_X)
 
         # Maps from indices from X to indices in dist matrix
-        dist_idx_map = np.zeros(X.shape[0], dtype=int)
-        dist_idx_map[row_missing_idx] = np.arange(row_missing_idx.shape[0])
+        ta.dist_idx_map = np.zeros(ta.X.shape[0], dtype=int)
+        ta.dist_idx_map[row_missing_idx] = np.arange(row_missing_idx.shape[0])
 
         # TODO: parallelize this
 
         def process_chunk(dist_chunk, start):
-            row_missing_chunk = row_missing_idx[start:start + len(dist_chunk)]
+            ta.row_missing_chunk = row_missing_idx[start:start + len(dist_chunk)]
 
-            # Find and impute missing by column
-            for col in range(X.shape[1]):
-                if not valid_mask[col]:
-                    # column was all missing during training
-                    continue
+            # get number of available cores
+            n_jobs = mp.cpu_count()
+            print("n_jobs: ", n_jobs)
 
-                col_mask = mask[row_missing_chunk, col]
-                if not np.any(col_mask):
-                    # column has no missing values
-                    continue
+            # Find and impute missing by column in parallel
+            pool = mp.Pool(n_jobs)
+            for col in range(ta.X.shape[1]):
+                pool.apply(_process_column,
+                       args=(col, ta, dist_chunk, start))
 
-                potential_donors_idx, = np.nonzero(non_missing_fix_X[:, col])
-
-                # receivers_idx are indices in X
-                receivers_idx = row_missing_chunk[np.flatnonzero(col_mask)]
-
-                # distances for samples that needed imputation for column
-                dist_subset = (dist_chunk[dist_idx_map[receivers_idx] - start]
-                               [:, potential_donors_idx])
-
-                # receivers with all nan distances impute with mean
-                all_nan_dist_mask = np.isnan(dist_subset).all(axis=1)
-                all_nan_receivers_idx = receivers_idx[all_nan_dist_mask]
-
-                if all_nan_receivers_idx.size:
-                    col_mean = np.ma.array(self._fit_X[:, col],
-                                           mask=mask_fit_X[:, col]).mean()
-                    X[all_nan_receivers_idx, col] = col_mean
-
-                    if len(all_nan_receivers_idx) == len(receivers_idx):
-                        # all receivers imputed with mean
-                        continue
-
-                    # receivers with at least one defined distance
-                    receivers_idx = receivers_idx[~all_nan_dist_mask]
-                    dist_subset = (dist_chunk[dist_idx_map[receivers_idx]
-                                              - start]
-                                   [:, potential_donors_idx])
-
-                n_neighbors = min(self.n_neighbors, len(potential_donors_idx))
-                value = self._calc_impute(
-                    dist_subset,
-                    n_neighbors,
-                    self._fit_X[potential_donors_idx, col],
-                    mask_fit_X[potential_donors_idx, col])
-                X[receivers_idx, col] = value
+            # Parallel(prefer="threads", n_jobs=n_jobs)(
+            #     _process_column(col, ta, dist_chunk, start)
+            #     for col in range(ta.X.shape[1]))
 
         # process in fixed-memory chunks
         gen = pairwise_distances_chunked(
-            X[row_missing_idx, :],
+            ta.X[row_missing_idx, :],
             self._fit_X,
             metric=self.metric,
             missing_values=self.missing_values,
@@ -302,4 +274,55 @@ class KNNImputer(_BaseImputer):
             # process_chunk modifies X in place. No return value.
             pass
 
-        return super()._concatenate_indicator(X[:, valid_mask], X_indicator)
+        return super()._concatenate_indicator(ta.X[:, ta.valid_mask], X_indicator)
+
+
+class _TransformArgs:
+    def __init__(self, knn):
+        self.knn = knn
+
+def _process_column(col, ta, dist_chunk, start):
+    if not ta.valid_mask[col]:
+        # column was all missing during training
+        return
+
+    col_mask = ta.mask[ta.row_missing_chunk, col]
+    if not np.any(col_mask):
+        # column has no missing values
+        return
+
+    potential_donors_idx, = np.nonzero(ta.non_missing_fix_X[:, col])
+
+    # receivers_idx are indices in X
+    receivers_idx = ta.row_missing_chunk[np.flatnonzero(col_mask)]
+
+    # distances for samples that needed imputation for column
+    dist_subset = (dist_chunk[ta.dist_idx_map[receivers_idx] - start]
+    [:, potential_donors_idx])
+
+    # receivers with all nan distances impute with mean
+    all_nan_dist_mask = np.isnan(dist_subset).all(axis=1)
+    all_nan_receivers_idx = receivers_idx[all_nan_dist_mask]
+
+    if all_nan_receivers_idx.size:
+        col_mean = np.ma.array(ta.knn._fit_X[:, col],
+                               mask=ta.mask_fit_X[:, col]).mean()
+        ta.X[all_nan_receivers_idx, col] = col_mean
+
+        if len(all_nan_receivers_idx) == len(receivers_idx):
+            # all receivers imputed with mean
+            return
+
+        # receivers with at least one defined distance
+        receivers_idx = receivers_idx[~all_nan_dist_mask]
+        dist_subset = (dist_chunk[ta.dist_idx_map[receivers_idx]
+                                  - start]
+        [:, potential_donors_idx])
+
+    n_neighbors = min(ta.knn.n_neighbors, len(potential_donors_idx))
+    value = ta.knn._calc_impute(
+        dist_subset,
+        n_neighbors,
+        ta.knn._fit_X[potential_donors_idx, col],
+        ta.mask_fit_X[potential_donors_idx, col])
+    ta.X[receivers_idx, col] = value
