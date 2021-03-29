@@ -38,15 +38,15 @@ def test_2K_by_500():
     assert end-start > 5
 
 
-def test_K_by_K():
-    # The original implementation takes over 33.48 seconds
+def test_1K_by_5K():
+    # The original implementation takes over 18.8 seconds
     start = time.time()
     large_random_matrix(1000, 5000)
     end = time.time()
 
     print("\nTime: ", end-start)
 
-    assert end-start > 0
+    assert end-start > 15
 
 
 def test_3K_by_1K():
@@ -69,3 +69,25 @@ def test_10K_by_100():
     print("\nTime: ", end-start)
 
     assert end-start > 45
+
+
+def test_8K_by_3K():
+    # The original implementation takes over 731.13 seconds
+    start = time.time()
+    large_random_matrix(8000, 3000)
+    end = time.time()
+
+    print("\nTime: ", end-start)
+
+    assert end-start > 0
+
+
+def test_10K_by_5K():
+    # The original implementation takes over 1932.16 seconds
+    start = time.time()
+    large_random_matrix(10000, 5000)
+    end = time.time()
+
+    print("\nTime: ", end-start)
+
+    assert end-start > 0
