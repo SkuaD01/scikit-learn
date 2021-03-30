@@ -289,10 +289,8 @@ class KNNImputer(_BaseImputer):
             row_missing_chunk = row_missing_idx[start:start + len(dist_chunk)]
 
             # Find and impute missing by column
-            Parallel(n_jobs=cpu_count(), backend='threading')(delayed(process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
-            # for col in range(X.shape[1]):
-            #     process_chunk_col(dist_chunk, start, row_missing_chunk, col)
-                
+            generator = (delayed(process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
+            Parallel(n_jobs=cpu_count(), backend='threading')(generator)
 
         # process in fixed-memory chunks
         gen = pairwise_distances_chunked(
@@ -301,7 +299,8 @@ class KNNImputer(_BaseImputer):
             metric=self.metric,
             missing_values=self.missing_values,
             force_all_finite=force_all_finite,
-            reduce_func=process_chunk)
+            reduce_func=process_chunk,
+            n_jobs=cpu_count())
         for chunk in gen:
             # process_chunk modifies X in place. No return value.
             pass

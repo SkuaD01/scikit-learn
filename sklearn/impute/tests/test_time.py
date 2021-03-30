@@ -4,6 +4,8 @@ from sklearn.impute import KNNImputer
 import time
 
 
+# Total Original Time:  97.91s
+# Total new Time:       48.07s
 
 def large_random_matrix(x, y):
     np.random.seed(1)
@@ -17,31 +19,10 @@ def large_random_matrix(x, y):
 
 
 def test_1K_by_100():
-    # The original implementation takes over 0.42 seconds
+    # The original implementation takes 0.4349205493927002 seconds
+    # The new implementation takes      0.3454127311706543 seconds
     start = time.time()
     large_random_matrix(1000, 100)
-    end = time.time()
-
-    print("\nTime: ", end-start)
-
-    assert end-start > 0.1
-
-
-def test_2K_by_500():
-    # The original implementation takes over 8.05 seconds
-    start = time.time()
-    large_random_matrix(2000, 500)
-    end = time.time()
-
-    print("\nTime: ", end-start)
-
-    assert end-start > 5
-
-
-def test_K_by_K():
-    # The original implementation takes over 33.48 seconds
-    start = time.time()
-    large_random_matrix(1000, 5000)
     end = time.time()
 
     print("\nTime: ", end-start)
@@ -49,23 +30,60 @@ def test_K_by_K():
     assert end-start > 0
 
 
-# def test_3K_by_1K():
-#     # The original implementation takes over 33.48 seconds
-#     start = time.time()
-#     large_random_matrix(3000, 1000)
-#     end = time.time()
-#
-#     print("\nTime: ", end-start)
-#
-#     assert end-start > 30
-#
-#
-# def test_10K_by_100():
-#     # The original implementation takes over 49.96 seconds
-#     start = time.time()
-#     large_random_matrix(10000, 100)
-#     end = time.time()
-#
-#     print("\nTime: ", end-start)
-#
-#     assert end-start > 45
+def test_2K_by_500():
+    # The original implementation takes 6.568829774856567 seconds
+    # The new implementation takes      3.880154848098755 seconds
+    start = time.time()
+    large_random_matrix(2000, 500)
+    end = time.time()
+
+    print("\nTime: ", end-start)
+
+    assert end-start > 0
+
+
+def test_1K_by_5K():
+    # The original implementation takes 17.162961959838867 seconds
+    # The new implementation takes      12.638985633850098 seconds
+    start = time.time()
+    large_random_matrix(1000, 5000)
+    end = time.time()
+
+    print("\nTime: ", end-start)
+
+    assert end - start > 0
+    
+def test_10K_by_4():
+    # The original implementation takes 2.436619281768799 seconds
+    # The new implementation takes      1.8823344707489014 seconds
+    start = time.time()
+    large_random_matrix(10000, 4)
+    end = time.time()
+
+    print("\nTime: ", end-start)
+
+    assert end-start > 0
+
+
+def test_3K_by_1K():
+    # The original implementation takes 28.86723804473877 seconds
+    # The new implementation takes      18.428542137145996 seconds
+    start = time.time()
+    large_random_matrix(3000, 1000)
+    end = time.time()
+
+    print("\nTime: ", end-start)
+
+    assert end-start > 0
+
+
+def test_10K_by_100():
+    # The original implementation takes 40.690518856048584 seconds
+    # The new implementation takes      33.974459171295166 seconds
+    start = time.time()
+    large_random_matrix(10000, 100)
+    end = time.time()
+
+    print("\nTime: ", end-start)
+
+    assert end-start > 0
