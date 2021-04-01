@@ -18,6 +18,7 @@ from scipy.spatial import distance
 from scipy.sparse import csr_matrix
 from scipy.sparse import issparse
 from joblib import Parallel, effective_n_jobs
+from multiprocessing import cpu_count
 
 from ..utils.validation import _num_samples
 from ..utils.validation import check_non_negative
@@ -1644,7 +1645,7 @@ def pairwise_distances_chunked(X, Y=None, *, reduce_func=None,
     params = _precompute_metric_params(X, Y, metric=metric, **kwds)
     kwds.update(**params)
 
-    for sl in slices:
+    def _process_slice(sl, reduce_func):
         if sl.start == 0 and sl.stop == n_samples_X:
             X_chunk = X  # enable optimised paths for X is Y
         else:
@@ -1661,8 +1662,12 @@ def pairwise_distances_chunked(X, Y=None, *, reduce_func=None,
             chunk_size = D_chunk.shape[0]
             D_chunk = reduce_func(D_chunk, sl.start)
             _check_chunk_size(D_chunk, chunk_size)
-        yield D_chunk
+        return D_chunk
 
+    generator = (delayed(_process_slice)(sl, reduce_func) for sl in slices)
+    par_res=Parallel(n_jobs, backend='threading')(generator)
+    for res in par_res:
+        yield res
 
 @_deprecate_positional_args
 def pairwise_distances(X, Y=None, metric="euclidean", *, n_jobs=None,

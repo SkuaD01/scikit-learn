@@ -1643,6 +1643,7 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
         self.interaction_only = interaction_only
         self.include_bias = include_bias
         self.order = order
+        self.degree = max_degree or degree # lazy evaluation to handle deprecaition
 
     @staticmethod
     @_deprecate_positional_args
