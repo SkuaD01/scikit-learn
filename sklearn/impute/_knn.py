@@ -239,7 +239,7 @@ class KNNImputer(_BaseImputer):
         dist_idx_map[row_missing_idx] = np.arange(row_missing_idx.shape[0])
 
 
-        def process_chunk_col(dist_chunk, start, row_missing_chunk, col):
+        def _process_chunk_col(dist_chunk, start, row_missing_chunk, col):
             if not valid_mask[col]:
                 # column was all missing during training
                 return
@@ -289,7 +289,7 @@ class KNNImputer(_BaseImputer):
             row_missing_chunk = row_missing_idx[start:start + len(dist_chunk)]
 
             # Find and impute missing by column
-            generator = (delayed(process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
+            generator = (delayed(_process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
             Parallel(n_jobs=cpu_count(), backend='threading')(generator)
 
         # process in fixed-memory chunks

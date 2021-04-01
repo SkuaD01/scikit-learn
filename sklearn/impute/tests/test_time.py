@@ -45,6 +45,7 @@ def test_2K_by_500():
 def test_1K_by_5K():
     # The original implementation takes 17.162961959838867 seconds
     # The new implementation takes      12.638985633850098 seconds
+    # Sofia time:                       10.330341100692749 seconds
     start = time.time()
     large_random_matrix(1000, 5000)
     end = time.time()
@@ -77,13 +78,13 @@ def test_3K_by_1K():
     assert end-start > 0
 
 
-def test_10K_by_100():
-    # The original implementation takes 40.690518856048584 seconds
-    # The new implementation takes      33.974459171295166 seconds
-    start = time.time()
-    large_random_matrix(10000, 100)
-    end = time.time()
-
-    print("\nTime: ", end-start)
-
-    assert end-start > 0
+# def test_10K_by_5K ():
+#     # The original implementation takes ___________ seconds
+#     # The new implementation takes      1471.1210680007935 seconds
+#     start = time.time()
+#     large_random_matrix(10000, 5000)
+#     end = time.time()
+#
+#     print("\nTime: ", end-start)
+#
+#     assert end-start > 0
