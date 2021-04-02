@@ -101,7 +101,7 @@ class KNNImputer(_BaseImputer):
     @_deprecate_positional_args
     def __init__(self, *, missing_values=np.nan, n_neighbors=5,
                  weights="uniform", metric="nan_euclidean", copy=True,
-                 add_indicator=False):
+                 add_indicator=False, n_jobs=cpu_count()):
         super().__init__(
             missing_values=missing_values,
             add_indicator=add_indicator
@@ -110,6 +110,7 @@ class KNNImputer(_BaseImputer):
         self.weights = weights
         self.metric = metric
         self.copy = copy
+        self.n_jobs = n_jobs
 
     def _calc_impute(self, dist_pot_donors, n_neighbors,
                      fit_X_col, mask_fit_X_col):
@@ -290,7 +291,7 @@ class KNNImputer(_BaseImputer):
 
             # Find and impute missing by column
             generator = (delayed(process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
-            Parallel(n_jobs=cpu_count(), backend='threading')(generator)
+            Parallel(n_jobs=self.n_jobs, backend='threading')(generator)
 
         # process in fixed-memory chunks
         gen = pairwise_distances_chunked(
@@ -300,7 +301,7 @@ class KNNImputer(_BaseImputer):
             missing_values=self.missing_values,
             force_all_finite=force_all_finite,
             reduce_func=process_chunk,
-            n_jobs=cpu_count())
+            n_jobs=self.n_jobs)
         for chunk in gen:
             # process_chunk modifies X in place. No return value.
             pass
