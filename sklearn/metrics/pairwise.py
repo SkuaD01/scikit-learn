@@ -1664,10 +1664,14 @@ def pairwise_distances_chunked(X, Y=None, *, reduce_func=None,
             _check_chunk_size(D_chunk, chunk_size)
         return D_chunk
 
-    generator = (delayed(_process_slice)(sl, reduce_func) for sl in slices)
-    par_res=Parallel(n_jobs, backend='threading')(generator)
-    for res in par_res:
-        yield res
+    if effective_n_jobs(n_jobs) > 1:
+        generator = (delayed(_process_slice)(sl, reduce_func) for sl in slices)
+        par_res=Parallel(n_jobs, backend='threading')(generator)
+        for res in par_res:
+            yield res
+    else:
+        for sl in slices:
+            yield _process_slice(sl, reduce_func)
 
 @_deprecate_positional_args
 def pairwise_distances(X, Y=None, metric="euclidean", *, n_jobs=None,

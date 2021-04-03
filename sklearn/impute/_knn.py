@@ -4,7 +4,7 @@
 
 import numpy as np
 from multiprocessing import cpu_count
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, effective_n_jobs
 
 from ._base import _BaseImputer
 from ..utils.validation import FLOAT_DTYPES
@@ -290,8 +290,12 @@ class KNNImputer(_BaseImputer):
             row_missing_chunk = row_missing_idx[start:start + len(dist_chunk)]
 
             # Find and impute missing by column
-            generator = (delayed(process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
-            Parallel(n_jobs=self.n_jobs, backend='threading')(generator)
+            if effective_n_jobs(self.n_jobs) > 1:
+                generator = (delayed(process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
+                Parallel(n_jobs=self.n_jobs, backend='threading')(generator)
+            else:
+                for col in range(X.shape[1]):
+                    process_chunk_col(dist_chunk, start, row_missing_chunk, col)
 
         # process in fixed-memory chunks
         gen = pairwise_distances_chunked(
