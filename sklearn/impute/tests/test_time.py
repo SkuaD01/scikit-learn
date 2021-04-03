@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.impute import KNNImputer
 import time
 import profile
+import pytest
 
 
 # Total Original Time:  97.91s
@@ -26,68 +27,93 @@ def run_test(X, old=False):
 
     return start,end
 
+def output_res(old_end,old_start,end,start):
+    print("\nOld time:", round((old_end-old_start),4) ,", New time:", round((end-start),4),",", str(round(((old_end-old_start)/(end-start) - 1)*100, 2))+"% improved")
 
-def test_1K_by_100():
-    X = gen_matrix(1000,100)
+
+# @pytest.mark.parametrize("n",[100,200,300,400,500])
+# def test_1_by_n(n):
+#     X = gen_matrix(1, n)
+
+#     start, end = run_test(X)
+#     old_start, old_end = run_test(X, old=True)
+
+#     output_res(old_end,old_start,end,start)
+
+#     assert (end-start) < (old_end-old_start)
+
+# @pytest.mark.parametrize("N",[1000,2000,3000,4000,5000,10000])
+# def test_1_by_N(N):
+#     X = gen_matrix(1, N)
+
+#     start, end = run_test(X)
+#     old_start, old_end = run_test(X, old=True)
+
+#     output_res(old_end,old_start,end,start)
+
+#     assert (end-start) < (old_end-old_start)
+
+# @pytest.mark.parametrize("n",[100,200,300,400,500])
+# def test_n_by_1(n):
+#     X = gen_matrix(n, 1)
+
+#     start, end = run_test(X)
+#     old_start, old_end = run_test(X, old=True)
+
+#     output_res(old_end,old_start,end,start)
+
+#     assert (end-start) < (old_end-old_start)
+
+# @pytest.mark.parametrize("N",[1000,2000,3000,4000,5000,10000])
+# def test_N_by_1(N):
+#     X = gen_matrix(N, 1)
+
+#     start, end = run_test(X)
+#     old_start, old_end = run_test(X, old=True)
+
+#     output_res(old_end,old_start,end,start)
+
+#     assert (end-start) < (old_end-old_start)
+
+@pytest.mark.parametrize("n1,n2",[(n1,n2) for n1 in [100,200,300,400,500] for n2 in [100,200,300,400,500]])
+def test_n_by_n(n1,n2):
+    X = gen_matrix(n1, n2)
 
     start, end = run_test(X)
-    old_start, old_end = run_test(X, True)
+    old_start, old_end = run_test(X, old=True)
 
-    print("\nOld time:", round((old_end-old_start),4) ,", New time:", round((end-start),4),",", str(round(((old_end-old_start)/(end-start) - 1)*100, 2))+"% increase")
+    output_res(old_end,old_start,end,start)
 
     assert (end-start) < (old_end-old_start)
 
+# @pytest.mark.parametrize("n,N",[(n,N) for n in [100,200,300,400,500] for N in [1000,2000,3000,4000,5000]])
+# def test_n_by_N(n,N):
+#     X = gen_matrix(n, N)
 
-def test_2K_by_500():
-    X = gen_matrix(2000, 500)
+#     start, end = run_test(X)
+#     old_start, old_end = run_test(X, old=True)
 
-    start, end = run_test(X)
-    old_start, old_end = run_test(X, True)
+#     output_res(old_end,old_start,end,start)
 
-    print("\nOld time:", round((old_end-old_start),3),", New time:", round((end-start),3),",", str(round(((old_end-old_start)/(end-start) - 1)*100, 2))+"% increase")
+#     assert (end-start) < (old_end-old_start)
 
-    assert (end-start) < (old_end-old_start)
+# @pytest.mark.parametrize("N,n",[(N,n) for n in [100,200,300,400,500] for N in [1000,2000,3000,4000,5000]])
+# def test_N_by_n(N,n):
+#     X = gen_matrix(N, n)
 
+#     start, end = run_test(X)
+#     old_start, old_end = run_test(X, old=True)
 
-def test_1K_by_5K():
-    X = gen_matrix(1000, 5000)
+#     output_res(old_end,old_start,end,start)
 
-    start, end = run_test(X)
-    old_start, old_end = run_test(X, True)
+#     assert (end-start) < (old_end-old_start)
 
-    print("\nOld time:", round((old_end-old_start),3),", New time:", round((end-start),3),",", str(round(((old_end-old_start)/(end-start) - 1)*100, 2))+"% increase")
+# def test_N_by_n():
+#     X = gen_matrix(10000, 100)
 
-    assert (end-start) < (old_end-old_start)
+#     start, end = run_test(X)
+#     old_start, old_end = run_test(X, old=True)
 
+#     output_res(old_end,old_start,end,start)
 
-def test_10K_by_4():
-    X = gen_matrix(10000, 4)
-
-    start, end = run_test(X)
-    old_start, old_end = run_test(X, True)
-
-    print("\nOld time:", round((old_end-old_start),3),", New time:", round((end-start),3),",", str(round(((old_end-old_start)/(end-start) - 1)*100, 2))+"% increase")
-
-    assert (end-start) < (old_end-old_start)
-
-
-def test_3K_by_1K():
-    X = gen_matrix(3000, 1000)
-
-    start, end = run_test(X)
-    old_start, old_end = run_test(X, True)
-
-    print("\nOld time:", round((old_end-old_start),3),", New time:", round((end-start),3),",", str(round(((old_end-old_start)/(end-start) - 1)*100, 2))+"% increase")
-
-    assert (end-start) < (old_end-old_start)
-
-
-def test_10K_by_100():
-    X = gen_matrix(10000, 100)
-
-    start, end = run_test(X)
-    old_start, old_end = run_test(X, True)
-
-    print("\nOld time:", round((old_end-old_start),3),", New time:", round((end-start),3),",", str(round(((old_end-old_start)/(end-start) - 1)*100, 2))+"% increase")
-
-    assert (end-start) < (old_end-old_start)
+#     assert (end-start) < (old_end-old_start)
