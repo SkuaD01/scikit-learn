@@ -8,9 +8,9 @@ import pytest
 ##################### THIS TEST SUITE WILL TAKE APPROXIMATELY 15 MINUTES, BUT VARIES BY MACHINE ############################
 
 # Initialise constants
-epsilon = 0.5
+epsilon = 0.75 # Seconds of breathing room for smaller sized n tests
 perc = [0.1,0.5,0.9] # We want to test a varying amount of missing values to impute, each of these represent the precrentage of missing values in X
-small_n = [100,300,500]
+small_n = [5,300,500]
 large_n = [1000,3000,5000]
 
 # generate random array of size x by y with (p*100)% missing values
