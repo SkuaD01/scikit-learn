@@ -3,6 +3,8 @@
 # License: BSD 3 clause
 
 import numpy as np
+from multiprocessing import cpu_count
+from joblib import Parallel, delayed, effective_n_jobs
 
 from ._base import _BaseImputer
 from ..utils.validation import FLOAT_DTYPES
@@ -99,7 +101,7 @@ class KNNImputer(_BaseImputer):
     @_deprecate_positional_args
     def __init__(self, *, missing_values=np.nan, n_neighbors=5,
                  weights="uniform", metric="nan_euclidean", copy=True,
-                 add_indicator=False):
+                 add_indicator=False, n_jobs=cpu_count()):
         super().__init__(
             missing_values=missing_values,
             add_indicator=add_indicator
@@ -108,6 +110,7 @@ class KNNImputer(_BaseImputer):
         self.weights = weights
         self.metric = metric
         self.copy = copy
+        self.n_jobs = n_jobs
 
     def _calc_impute(self, dist_pot_donors, n_neighbors,
                      fit_X_col, mask_fit_X_col):
@@ -236,55 +239,63 @@ class KNNImputer(_BaseImputer):
         dist_idx_map = np.zeros(X.shape[0], dtype=int)
         dist_idx_map[row_missing_idx] = np.arange(row_missing_idx.shape[0])
 
+
+        def process_chunk_col(dist_chunk, start, row_missing_chunk, col):
+            if not valid_mask[col]:
+                # column was all missing during training
+                return
+
+            col_mask = mask[row_missing_chunk, col]
+            if not np.any(col_mask):
+                # column has no missing values
+                return
+
+            potential_donors_idx, = np.nonzero(non_missing_fix_X[:, col])
+
+            # receivers_idx are indices in X
+            receivers_idx = row_missing_chunk[np.flatnonzero(col_mask)]
+
+            # distances for samples that needed imputation for column
+            dist_subset = (dist_chunk[dist_idx_map[receivers_idx] - start]
+                            [:, potential_donors_idx])
+
+            # receivers with all nan distances impute with mean
+            all_nan_dist_mask = np.isnan(dist_subset).all(axis=1)
+            all_nan_receivers_idx = receivers_idx[all_nan_dist_mask]
+
+            if all_nan_receivers_idx.size:
+                col_mean = np.ma.array(self._fit_X[:, col],
+                                        mask=mask_fit_X[:, col]).mean()
+                X[all_nan_receivers_idx, col] = col_mean
+
+                if len(all_nan_receivers_idx) == len(receivers_idx):
+                    # all receivers imputed with mean
+                    return
+
+                # receivers with at least one defined distance
+                receivers_idx = receivers_idx[~all_nan_dist_mask]
+                dist_subset = (dist_chunk[dist_idx_map[receivers_idx]
+                                          - start]
+                                [:, potential_donors_idx])
+
+            n_neighbors = min(self.n_neighbors, len(potential_donors_idx))
+            value = self._calc_impute(
+                dist_subset,
+                n_neighbors,
+                self._fit_X[potential_donors_idx, col],
+                mask_fit_X[potential_donors_idx, col])
+            X[receivers_idx, col] = value
+
         def process_chunk(dist_chunk, start):
             row_missing_chunk = row_missing_idx[start:start + len(dist_chunk)]
 
             # Find and impute missing by column
-            for col in range(X.shape[1]):
-                if not valid_mask[col]:
-                    # column was all missing during training
-                    continue
-
-                col_mask = mask[row_missing_chunk, col]
-                if not np.any(col_mask):
-                    # column has no missing values
-                    continue
-
-                potential_donors_idx, = np.nonzero(non_missing_fix_X[:, col])
-
-                # receivers_idx are indices in X
-                receivers_idx = row_missing_chunk[np.flatnonzero(col_mask)]
-
-                # distances for samples that needed imputation for column
-                dist_subset = (dist_chunk[dist_idx_map[receivers_idx] - start]
-                               [:, potential_donors_idx])
-
-                # receivers with all nan distances impute with mean
-                all_nan_dist_mask = np.isnan(dist_subset).all(axis=1)
-                all_nan_receivers_idx = receivers_idx[all_nan_dist_mask]
-
-                if all_nan_receivers_idx.size:
-                    col_mean = np.ma.array(self._fit_X[:, col],
-                                           mask=mask_fit_X[:, col]).mean()
-                    X[all_nan_receivers_idx, col] = col_mean
-
-                    if len(all_nan_receivers_idx) == len(receivers_idx):
-                        # all receivers imputed with mean
-                        continue
-
-                    # receivers with at least one defined distance
-                    receivers_idx = receivers_idx[~all_nan_dist_mask]
-                    dist_subset = (dist_chunk[dist_idx_map[receivers_idx]
-                                              - start]
-                                   [:, potential_donors_idx])
-
-                n_neighbors = min(self.n_neighbors, len(potential_donors_idx))
-                value = self._calc_impute(
-                    dist_subset,
-                    n_neighbors,
-                    self._fit_X[potential_donors_idx, col],
-                    mask_fit_X[potential_donors_idx, col])
-                X[receivers_idx, col] = value
+            if effective_n_jobs(self.n_jobs) > 1:
+                generator = (delayed(process_chunk_col)(dist_chunk, start, row_missing_chunk, col) for col in range(X.shape[1]))
+                Parallel(n_jobs=self.n_jobs, backend='threading')(generator)
+            else:
+                for col in range(X.shape[1]):
+                    process_chunk_col(dist_chunk, start, row_missing_chunk, col)
 
         # process in fixed-memory chunks
         gen = pairwise_distances_chunked(
@@ -293,7 +304,8 @@ class KNNImputer(_BaseImputer):
             metric=self.metric,
             missing_values=self.missing_values,
             force_all_finite=force_all_finite,
-            reduce_func=process_chunk)
+            reduce_func=process_chunk,
+            n_jobs=self.n_jobs)
         for chunk in gen:
             # process_chunk modifies X in place. No return value.
             pass

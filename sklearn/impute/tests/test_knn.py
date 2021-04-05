@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from multiprocessing import cpu_count
 
 from sklearn import config_context
 from sklearn.impute import KNNImputer
@@ -639,3 +640,27 @@ def test_knn_imputer_distance_weighted_not_enough_neighbors(na,
 def test_knn_tags(na, allow_nan):
     knn = KNNImputer(missing_values=na)
     assert knn._get_tags()["allow_nan"] == allow_nan
+
+
+@pytest.mark.parametrize("n", [1,2, cpu_count(), cpu_count()+1, 2*cpu_count()])
+def test_knn_inputer_varying_n_jobs(n):
+    knn = KNNImputer(n_jobs=n)
+    na = np.nan
+    X = np.array([
+        [1, na, 1, 1, 1.],
+        [2, 2, 2, 2, 2],
+        [3, 3, 3, 3, na],
+        [6, 6, na, 6, 6],
+    ])
+
+    r1c2 = 11 / 3
+    r4c3 = 2
+    r3c5 = 3
+
+    X_imputed = np.array([
+        [1, r1c2, 1, 1, 1.],
+        [2, 2, 2, 2, 2],
+        [3, 3, 3, 3, r3c5],
+        [6, 6, r4c3, 6, 6],
+    ])
+    assert_allclose(knn.fit_transform(X), X_imputed)
